@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22.1)
 
-set(MODULE_NAME il2cpp-bridge)
+set(MODULE_NAME AssetSideLoader)
 
 project(${MODULE_NAME})
 
@@ -25,7 +25,6 @@ set(CXX_FLAGS "${CXX_FLAGS} -fno-exceptions -fno-rtti")
 
 add_library(${MODULE_NAME} SHARED
         main.cpp
-        hook_il2cpp.cpp
         )
 
 target_link_libraries(${MODULE_NAME} dobby xdl::xdl)

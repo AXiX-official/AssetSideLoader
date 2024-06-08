@@ -10,14 +10,14 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Il2cppbridge"
+        android:theme="@style/Theme.AppCompat.DayNight"
         tools:targetApi="34">
         <meta-data
             android:name="xposedmodule"
             android:value="true" />
         <meta-data
             android:name="xposeddescription"
-            android:value="Il2cpp bridge" />
+            android:value="Asset Side Loader" />
         <meta-data
             android:name="xposedminversion"
             android:value="82" />

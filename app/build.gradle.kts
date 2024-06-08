@@ -4,15 +4,15 @@ plugins {
 }
 
 android {
-    namespace = "com.axix.il2cpp_bridge"
+    namespace = "com.axix.assetsideloader"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.axix.il2cpp_bridge"
+        applicationId = "com.axix.assetsideloader"
         minSdk = 26
         targetSdk = 34
-        versionCode = 104
-        versionName = "1.0.4"
+        versionCode = 105
+        versionName = "1.0.5"
 
         ndk {
         }
