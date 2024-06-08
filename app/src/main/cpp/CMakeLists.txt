@@ -1,24 +1,34 @@
 cmake_minimum_required(VERSION 3.22.1)
 
-add_library( # Sets the name of the library.
-        il2cpp-bridge
+set(MODULE_NAME il2cpp-bridge)
 
-        # Sets the library as a shared library.
-        SHARED
+project(${MODULE_NAME})
 
-        # Provides a relative path to your source file(s).
-        main.cpp )
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
 
-find_library( # Sets the name of the path variable.
-        log-lib
+set(C_FLAGS "${C_FLAGS} -O2 -fvisibility=hidden -fvisibility-inlines-hidden")
+set(LINKER_FLAGS "${LINKER_FLAGS} -Wl,-exclude-libs,ALL -Wl,--gc-sections -Wl,--strip-all")
 
-        # Specifies the name of the NDK library that
-        # you want CMake to locate.
-        log )
+include_directories(
+        dobby/include
+)
 
-target_link_libraries( # Specifies the target library.
-        il2cpp-bridge
+add_subdirectory(dobby dobby)
 
-        # Links the target library to the log library
-        # included in the NDK.
-        ${log-lib} )
+find_package(xdl REQUIRED CONFIG)
+
+set(CMAKE_CXX_STANDARD 20)
+
+set(CXX_FLAGS "${CXX_FLAGS} -fno-exceptions -fno-rtti")
+
+add_library(${MODULE_NAME} SHARED
+        main.cpp
+        hook_il2cpp.cpp
+        )
+
+target_link_libraries(${MODULE_NAME} dobby xdl::xdl)
+
+add_custom_command(TARGET ${MODULE_NAME} POST_BUILD
+        COMMAND ${CMAKE_STRIP} --strip-all --remove-section=.comment "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${MODULE_NAME}.so")
