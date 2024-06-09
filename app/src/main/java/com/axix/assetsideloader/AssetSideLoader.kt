@@ -1,7 +1,7 @@
 package com.axix.assetsideloader
 
 class AssetSideLoader {
-    external fun InitHook(): Void
+    external fun InitHook(pakageName: String): Void
 
     companion object {
         init {
