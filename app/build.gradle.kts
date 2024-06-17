@@ -1,18 +1,19 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("kotlin-parcelize")
 }
 
 android {
-    namespace = "com.axix.assetsideloader"
+    namespace = "top.axix.assetsideloader"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.axix.assetsideloader"
-        minSdk = 26
+        applicationId = "top.axix.assetsideloader"
+        minSdk = 24
         targetSdk = 34
-        versionCode = 106
-        versionName = "1.0.6"
+        versionCode = 111
+        versionName = "1.1.1"
 
         ndk {
         }
@@ -34,10 +35,23 @@ android {
     buildFeatures{
         prefab = true
     }
+
+    buildTypes {
+        debug {
+            isMinifyEnabled = false
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
+
+    lint {
+        abortOnError = true
+        checkReleaseBuilds = false
+    }
+
     kotlinOptions {
         jvmTarget = "1.8"
     }
@@ -52,4 +66,6 @@ dependencies {
     implementation("com.google.android.material:material:1.9.0")
     testImplementation("junit:junit:4.13.2")
     implementation("io.github.hexhacking:xdl:2.1.1")
+    implementation("androidx.recyclerview:recyclerview:1.2.1")
+    implementation("com.google.code.gson:gson:2.8.9")
 }

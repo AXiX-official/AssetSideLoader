@@ -4,10 +4,12 @@
 #include <string>
 #include <unistd.h>
 #include <fstream>
+#include <iostream>
+#include <filesystem>
 #include <dobby.h>
-#include "xdl.h"
 #include "log.h"
 #include "utf8.h"
+#include "xdl.h"
 #include "il2cpp-class.h"
 
 //------------------------------------------------------------------------------------------------//
@@ -33,28 +35,30 @@ void init_il2cpp_api(void *handle) {
 
 //------------------------------------------------------------------------------------------------//
 
-void* Handle = nullptr;
+typedef struct {
+    void* handle;
+    const char* pakageName;
+    const char* dataDir;
+    const char* apkDir;
+    const char* modDir;
+} AppInfo;
 
-std::string pakageName = "";
-
-std::string modDir = "/storage/emulated/0/Android/data/";
+AppInfo appInfo;
 
 //------------------------------------------------------------------------------------------------//
 
 void* ReplacePath(std::string path) {
-    if (path.find("AssetBundles") != std::string::npos) {
-        std::string modPath = modDir + path.substr(path.find("AssetBundles") + 12);
-        if (modPath.find(".ys") != std::string::npos) {
-            //去除.ys后缀
-            modPath = modPath.substr(0, modPath.find(".ys"));
-        }
-        // 判断文件是否存在
-        std::ifstream file(modPath);
-        if (file) {
-            LOG_I("Redirect from: %s", path.c_str());
-            LOG_I("To: %s", modPath.c_str());
-            return il2cpp_string_new(modPath.c_str());
-        }
+    std::string new_path;
+    if (path.find(appInfo.apkDir) == 0) {
+        new_path = appInfo.modDir + path.substr(strlen(appInfo.apkDir));
+    } else if (path.find(appInfo.dataDir) == 0) {
+        new_path = appInfo.modDir + path.substr(strlen(appInfo.dataDir));
+    } else {
+        new_path = path;
+    }
+    if (std::__fs::filesystem::exists(new_path)) {
+        LOG_D("Replace path: %s -> %s", path.c_str(), new_path.c_str());
+        return il2cpp_string_new(new_path.c_str());
     }
     return il2cpp_string_new(path.c_str());
 }
@@ -98,16 +102,12 @@ void* Hook_LoadFromFileAsync_Internal(void* path, uint32_t crc, uint64_t offset)
 
 void hook_funcs(){
     LOG_I("Init Il2cpp api...");
-    init_il2cpp_api(Handle);
+    init_il2cpp_api(appInfo.handle);
     LOG_I("hooking...");
-
-    modDir += pakageName;
-    modDir += "/files/mods";
-    LOG_I("modDir: %s", modDir.c_str());
 
     uint64_t LoadFromFile_Internal_addr = (uint64_t)il2cpp_resolve_icall("UnityEngine.AssetBundle::LoadFromFile_Internal(System.String,System.UInt32,System.UInt64)");
     if (LoadFromFile_Internal_addr) {
-        LOG_I("LoadFromFile_Internal_addr: %" PRIx64"", LoadFromFile_Internal_addr);
+        LOG_D("LoadFromFile_Internal_addr: %" PRIx64"", LoadFromFile_Internal_addr);
         DobbyHook(
                 (void *)LoadFromFile_Internal_addr,
                 (void *)Hook_LoadFromFile_Internal,
@@ -117,7 +117,7 @@ void hook_funcs(){
 
     uint64_t LoadFromFileAsync_Internal_addr = (uint64_t)il2cpp_resolve_icall("UnityEngine.AssetBundle::LoadFromFileAsync_Internal(System.String,System.UInt32,System.UInt64)");
     if (LoadFromFileAsync_Internal_addr) {
-        LOG_I("LoadFromFileAsync_Internal_addr: %" PRIx64"", LoadFromFileAsync_Internal_addr);
+        LOG_D("LoadFromFileAsync_Internal_addr: %" PRIx64"", LoadFromFileAsync_Internal_addr);
         DobbyHook(
                 (void *)LoadFromFileAsync_Internal_addr,
                 (void *)Hook_LoadFromFileAsync_Internal,
@@ -135,11 +135,11 @@ il2cpp_init_func il2cpp_init_origin = nullptr;
 int hook_il2cpp_init(const char *domain_name) {
     int result = il2cpp_init_origin(domain_name);
     DobbyDestroy((void*)hook_il2cpp_init);
-    LOG_I("il2cpp_init finished with result: %d", result);
+    LOG_D("il2cpp_init finished with result: %d", result);
     if (result == 1){
         DobbyDestroy((void*)hook_il2cpp_init);
-        Handle = xdl_open("libil2cpp.so", 0);
-        LOG_I("libil2cpp.so handle: %p", Handle);
+        appInfo.handle = xdl_open("libil2cpp.so", 0);
+        LOG_D("libil2cpp.so handle: %p", appInfo.handle);
         hook_funcs();
     }
     return result;
@@ -154,7 +154,7 @@ static dlsym_t orig_dlsym = nullptr;
 void* my_dlsym(void* handle, const char* symbol){
     void* addr = orig_dlsym(handle, symbol);
     if (strcmp(symbol, "il2cpp_init") == 0) {
-        LOG_I("symbol il2cpp_init found at: %p", addr);
+        LOG_D("symbol il2cpp_init found at: %p", addr);
         DobbyDestroy((void*)my_dlsym);
         DobbyHook(
                 (void*)addr,
@@ -169,8 +169,17 @@ void* my_dlsym(void* handle, const char* symbol){
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_axix_assetsideloader_AssetSideLoader_InitHook(JNIEnv *env, jobject thiz, jstring str) {
-    pakageName = env->GetStringUTFChars(str, NULL);
+Java_top_axix_assetsideloader_AssetSideLoader_InitHook(JNIEnv *env, jobject thiz, jstring pgn, jstring dataPath, jstring apkPath, jstring modPath) {
+    LOG_D("Native hook init...");
+    appInfo.pakageName = env->GetStringUTFChars(pgn, NULL);
+    LOG_D("Package name: %s", appInfo.pakageName);
+    appInfo.dataDir = env->GetStringUTFChars(dataPath, NULL);
+    LOG_D("Data dir: %s", appInfo.dataDir);
+    appInfo.apkDir = env->GetStringUTFChars(apkPath, NULL);
+    LOG_D("Apk dir: %s", appInfo.apkDir);
+    appInfo.modDir = env->GetStringUTFChars(modPath, NULL);
+    LOG_D("Mod dir: %s", appInfo.modDir);
     LOG_D("Hooking dlsym...");
+
     DobbyHook((void*) dlsym, (void*)my_dlsym, (void**)&orig_dlsym);
 }
